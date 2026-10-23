@@ -1,0 +1,16 @@
+services:
+  bubbleseerr:
+    build: .
+    image: bubbleseerr:latest
+    container_name: bubbleseerr
+    ports:
+      - 5056:5056
+    volumes:
+      # A named volume, so the app (which runs as a normal user) can write to it.
+      - bubbleseerr-config:/app/config
+    environment:
+      - TZ=Europe/Berlin
+    restart: unless-stopped
+
+volumes:
+  bubbleseerr-config:
