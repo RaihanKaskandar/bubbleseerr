@@ -27,10 +27,10 @@ export function Slider({ sliderKey, items, isLoading, isEmpty, emptyMessage }: S
     if (!el) {
       return;
     }
-    setScrollPos({
-      isStart: el.scrollLeft <= 1,
-      isEnd: el.scrollLeft + el.clientWidth >= el.scrollWidth - 1,
-    });
+    const isStart = el.scrollLeft <= 1;
+    const isEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+    // This runs for every scroll event; most of them change nothing
+    setScrollPos((pos) => (pos.isStart === isStart && pos.isEnd === isEnd ? pos : { isStart, isEnd }));
   }, []);
 
   useEffect(() => {

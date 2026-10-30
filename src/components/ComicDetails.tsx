@@ -17,6 +17,7 @@ import RequestItem from '@app/components/RequestItem';
 import RequestModal, { type ComicResponse } from '@app/components/RequestModal';
 import StatusBadge from '@app/components/StatusBadge';
 import { apiSend, errorMessage, fetcher } from '@app/lib/api';
+import { coverSrc } from '@app/lib/cover';
 import { InlineSpinner } from '@app/components/Common/LoadingSpinner';
 import { Permission } from '@app/lib/permissions';
 import { canRequest, displayStatus } from '@app/lib/status';
@@ -94,7 +95,7 @@ export default function ComicDetails({ comicvineId }: { comicvineId: number }) {
         <div className="media-page-bg-image overflow-hidden">
           {/* Comics have no backdrops, so the cover is blurred instead */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={volume.cover_link} alt="" className="h-full w-full scale-110 object-cover object-top blur-2xl" />
+          <img src={coverSrc(volume.cover_link)} alt="" className="h-full w-full scale-110 object-cover object-top blur-2xl" />
           <div
             className="absolute inset-0"
             style={{
@@ -110,7 +111,7 @@ export default function ComicDetails({ comicvineId }: { comicvineId: number }) {
         <div className="media-poster">
           {volume.cover_link ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={volume.cover_link} alt="" className="w-full" />
+            <img src={coverSrc(volume.cover_link)} alt="" className="w-full" />
           ) : (
             <div className="aspect-[2/3] w-full bg-gray-700" />
           )}

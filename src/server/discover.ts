@@ -3,6 +3,7 @@ import type { LibraryStatus } from '@app/lib/types';
 import { bubblarr, type LibraryVolume, type ReleaseVolume } from '@app/server/bubblarr';
 import { TtlCache } from '@app/server/cache';
 import { libraryCoverUrl, requestStatuses, type CardData } from '@app/server/cards';
+import { StoredCache } from '@app/server/stored-cache';
 import { STARTERS } from '@app/server/starters';
 import {
   isEnglishPublisher,
@@ -112,24 +113,33 @@ function publisherRank(publisher: string | null): number {
 
 const RELEASES_DAYS_BACK = 24;
 const RELEASES_DAYS_AHEAD = 6;
-const releasesCache = new TtlCache<ReleaseVolume[]>(6 * 60 * 60 * 1000, 2);
+/** A bit more than the 6 hours Bubblarr caches them, or we'd get its old copy */
+const RELEASES_FRESH_FOR = 6 * 60 * 60 * 1000 + 10 * 60 * 1000;
 
 /**
  * Everything released in the last few weeks (and announced for the next
  * days) according to ComicVine. One big fetch that all release rows share;
- * ComicVine has a strict rate limit.
+ * ComicVine has a strict rate limit, and it takes Bubblarr a while (14s on a
+ * real server), so it runs in the background and rows use the stored copy.
  */
-function recentReleases(): Promise<ReleaseVolume[]> {
+const releases = new StoredCache<ReleaseVolume[]>('releases', RELEASES_FRESH_FOR, async () => {
   const now = Date.now();
-  return releasesCache.getOrSet('recent', async () =>
-    (
-      await bubblarr.releases(
-        isoDate(new Date(now - RELEASES_DAYS_BACK * 86400000)),
-        isoDate(new Date(now + RELEASES_DAYS_AHEAD * 86400000)),
-        2000
-      )
-    ).filter(isWesternRelease)
-  );
+  return (
+    await bubblarr.releases(
+      isoDate(new Date(now - RELEASES_DAYS_BACK * 86400000)),
+      isoDate(new Date(now + RELEASES_DAYS_AHEAD * 86400000)),
+      2000
+    )
+  ).filter(isWesternRelease);
+});
+
+function recentReleases(): Promise<ReleaseVolume[]> {
+  return releases.get();
+}
+
+/** For the background job, so people don't have to wait for it */
+export function refreshReleases(): Promise<void> {
+  return releases.refreshIfStale();
 }
 
 function releaseToCard(v: ReleaseVolume, subtitle: string): CardData {
@@ -148,10 +158,13 @@ function releaseToCard(v: ReleaseVolume, subtitle: string): CardData {
   };
 }
 
+/** How long a row waits for library statuses; it has older ones to show */
+const STATUS_TIMEOUT = 3000;
+
 /** The cached release data has old library statuses; get the current ones */
 async function withFreshStatuses(cards: CardData[]): Promise<CardData[]> {
   try {
-    const statuses = await bubblarr.statuses(cards.map((c) => c.comicvineId));
+    const statuses = await bubblarr.statuses(cards.map((c) => c.comicvineId), STATUS_TIMEOUT);
     cards = cards.map((c) => ({ ...c, libraryStatus: statuses[c.comicvineId]?.status ?? c.libraryStatus }));
   } catch {
     // Keep the cached ones
@@ -276,7 +289,7 @@ export async function startingPoints(publishers: string[]): Promise<CardData[]> 
   const starters = STARTERS.filter((s) => wantsPublisher(publishers, s.publisher));
   let statuses: Record<number, { status: LibraryStatus }> = {};
   try {
-    statuses = await bubblarr.statuses(starters.map((s) => s.comicvineId));
+    statuses = await bubblarr.statuses(starters.map((s) => s.comicvineId), STATUS_TIMEOUT);
   } catch {
     // Show them without status
   }
@@ -299,11 +312,6 @@ export async function startingPoints(publishers: string[]): Promise<CardData[]> 
 
 export function clearDiscoverCache(): void {
   libraryCache.clear();
-}
-
-/** Library statuses in the release rows are refreshed on the next fetch */
-export function clearReleasesCache(): void {
-  releasesCache.clear();
 }
 
 

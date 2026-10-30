@@ -251,7 +251,8 @@ export const bubblarr = {
   },
 
   async statuses(
-    comicvineIds: number[]
+    comicvineIds: number[],
+    timeout?: number
   ): Promise<Record<number, VolumeLibraryStatus>> {
     const result: Record<number, VolumeLibraryStatus> = {};
     // Bubblarr accepts up to 500 IDs per call
@@ -259,7 +260,7 @@ export const bubblarr = {
       const chunk = comicvineIds.slice(i, i + 500);
       const statuses = await call<Record<string, VolumeLibraryStatus>>(
         '/lookup/status',
-        { query: { comicvine_ids: chunk.join(',') } }
+        { query: { comicvine_ids: chunk.join(',') }, timeout }
       );
       for (const [id, status] of Object.entries(statuses)) {
         result[Number(id)] = status;

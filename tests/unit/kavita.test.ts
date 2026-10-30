@@ -68,4 +68,16 @@ describe('Kavita', () => {
     // The scan forgets that it wasn't found, so it's looked up again
     expect(await getKavitaLink(171903, 'Barbara Gordon: Breakout', 2026)).toBe('http://kavita:5000/library/1/series/99');
   });
+
+  it('does not keep trying a Kavita that is down', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const down = vi.fn(async () => {
+      throw new Error('connection refused');
+    });
+    vi.stubGlobal('fetch', down);
+    expect(await getKavitaLink(171904, 'Saga', 2012)).toBeNull();
+    const calls = down.mock.calls.length;
+    expect(await getKavitaLink(171904, 'Saga', 2012)).toBeNull();
+    expect(down.mock.calls.length).toBe(calls);
+  });
 });

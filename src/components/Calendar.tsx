@@ -13,6 +13,7 @@ import Header from '@app/components/Common/Header';
 import LoadingSpinner from '@app/components/Common/LoadingSpinner';
 import PageTitle from '@app/components/Common/PageTitle';
 import { errorMessage, fetcher } from '@app/lib/api';
+import { coverSrc } from '@app/lib/cover';
 import { describePublishers } from '@app/lib/publishers';
 import type { CalendarEntry } from '@app/server/discover';
 
@@ -48,7 +49,7 @@ function monthGrid(month: Date): Date[] {
 function Cover({ entry, className }: { entry: CalendarEntry; className: string }) {
   return entry.coverUrl ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={entry.coverUrl} alt="" loading="lazy" className={`flex-shrink-0 rounded object-cover ${className}`} />
+    <img src={coverSrc(entry.coverUrl)} alt="" loading="lazy" className={`flex-shrink-0 rounded object-cover ${className}`} />
   ) : (
     <div className={`flex-shrink-0 rounded bg-gray-700 ${className}`} />
   );
