@@ -26,7 +26,8 @@ export default function Profile() {
   const [email, setEmail] = useState(user?.email ?? '');
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [publishers, setPublishers] = useState(usePublishers());
-  const [saving, setSaving] = useState<'profile' | 'password' | 'publishers' | null>(null);
+  const [saving, setSaving] = useState<'profile' | 'password' | 'publishers' | 'kavita' | null>(null);
+  const [kavita, setKavita] = useState({ login: '', password: '' });
 
   if (!user) {
     return null;
@@ -70,6 +71,34 @@ export default function Profile() {
       await apiSend(`/api/v1/users/${user.id}`, 'PUT', { password: passwords.next, currentPassword: passwords.current });
       setPasswords({ current: '', next: '', confirm: '' });
       toast.success('Password changed. Other devices are signed out.');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const linkKavita = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving('kavita');
+    try {
+      await apiSend('/api/v1/auth/kavita', 'POST', kavita);
+      setKavita({ login: '', password: '' });
+      toast.success('Kavita account connected');
+      router.refresh();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const unlinkKavita = async () => {
+    setSaving('kavita');
+    try {
+      await apiSend('/api/v1/auth/kavita', 'DELETE');
+      toast.success('Kavita account disconnected');
+      router.refresh();
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -157,6 +186,58 @@ export default function Profile() {
           </div>
         </div>
       </form>
+
+      <h3 id="linked-accounts" className="heading scroll-mt-24">Linked Accounts</h3>
+      <p className="description">
+        {user.authSource === 'local'
+          ? user.kavitaLinkId
+            ? 'This account is connected to a Kavita account. You can sign in with either its Bubbleseerr password or your Kavita login.'
+            : 'Connect your Kavita account to sign in with it. Your Bubbleseerr password keeps working.'
+          : `This account is connected to your ${sourceName(user.authSource)} account and signs in with it.`}
+      </p>
+      <div className="section">
+        <div className="form-row">
+          <span className="text-label">{sourceName('kavita')}</span>
+          <div className="form-input-area">
+            {user.authSource === 'kavita' || user.kavitaLinkId ? (
+              <div className="flex items-center gap-3">
+                <Badge badgeType="success">
+                  Connected{(user.kavitaLinkId ?? user.externalId) ? ` (ID ${user.kavitaLinkId ?? user.externalId})` : ''}
+                </Badge>
+                {user.authSource === 'local' && (
+                  <Button type="button" buttonType="danger" disabled={saving !== null} onClick={() => void unlinkKavita()}>
+                    <span>Disconnect</span>
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Badge badgeType="default">Not connected</Badge>
+            )}
+          </div>
+        </div>
+        {user.authSource === 'komga' && (
+          <div className="form-row">
+            <span className="text-label">{sourceName('komga')}</span>
+            <div className="form-input-area">
+              <Badge badgeType="success">Connected</Badge>
+            </div>
+          </div>
+        )}
+      </div>
+      {user.authSource === 'local' && !user.kavitaLinkId && (
+        <form onSubmit={linkKavita} className="section">
+          {input('kavita-login', 'Kavita Username', 'text', kavita.login, (v) => setKavita({ ...kavita, login: v }), 'off')}
+          {input('kavita-password', 'Kavita Password', 'password', kavita.password, (v) => setKavita({ ...kavita, password: v }), 'off')}
+          <div className="actions">
+            <div className="flex justify-end">
+              <Button buttonType="primary" type="submit" disabled={saving !== null || !kavita.login || !kavita.password}>
+                <CheckIcon />
+                <span>{saving === 'kavita' ? 'Connecting...' : 'Connect Kavita'}</span>
+              </Button>
+            </div>
+          </div>
+        </form>
+      )}
 
       {user.authSource !== 'local' ? (
         <>

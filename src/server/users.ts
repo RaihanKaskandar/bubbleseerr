@@ -293,6 +293,13 @@ export async function authenticate(login: string, password: string): Promise<Use
   if (linked) {
     return linked;
   }
+  // A local account connected to this Kavita account
+  if (account.server === 'kavita') {
+    const connected = getDb().select().from(users).where(eq(users.kavitaLinkId, account.externalId)).get();
+    if (connected) {
+      return connected;
+    }
+  }
 
   const settings = getSettings();
   const serverName = MEDIA_SERVER_NAMES[account.server];
@@ -318,4 +325,44 @@ export async function authenticate(login: string, password: string): Promise<Use
     account,
   });
   return getUser(created.id) ?? null;
+}
+
+/** Connect a local account to a Kavita account, after Kavita accepted the login */
+export async function linkKavita(user: User, login: string, password: string): Promise<PublicUser> {
+  const { kavitaUrl } = getSettings();
+  if (user.authSource !== 'local') {
+    throw new ApiError(400, 'This account already signs in with a media server', 'external_account');
+  }
+  if (!kavitaUrl) {
+    throw new ApiError(400, 'Kavita is not set up', 'not_configured');
+  }
+  let account: MediaAccount | null;
+  try {
+    account = await mediaLogin('kavita', kavitaUrl, login.trim(), password);
+  } catch (e) {
+    throw new ApiError(502, e instanceof Error ? e.message : 'Kavita failed', 'media_server_error');
+  }
+  if (!account) {
+    throw new ApiError(401, 'Wrong Kavita username or password', 'invalid_credentials');
+  }
+  const db = getDb();
+  const taken =
+    db.select({ id: users.id }).from(users).where(eq(users.kavitaLinkId, account.externalId)).get() ??
+    db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.authSource, 'kavita'), eq(users.externalId, account.externalId)))
+      .get();
+  if (taken) {
+    throw new ApiError(409, 'This Kavita account is already connected to another user', 'already_linked');
+  }
+  return toPublicUser(
+    db.update(users).set({ kavitaLinkId: account.externalId }).where(eq(users.id, user.id)).returning().get()
+  );
+}
+
+export function unlinkKavita(user: User): PublicUser {
+  return toPublicUser(
+    getDb().update(users).set({ kavitaLinkId: null }).where(eq(users.id, user.id)).returning().get()
+  );
 }
