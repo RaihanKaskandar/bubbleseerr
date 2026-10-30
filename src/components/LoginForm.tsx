@@ -62,7 +62,8 @@ export default function LoginForm({ appTitle, mediaServer }: { appTitle: string;
             </div>
           )}
           <div className="px-10 py-8">
-            <form onSubmit={submit}>
+            {/* post: pressing Enter before the page is ready must not put the password in the URL */}
+            <form method="post" onSubmit={submit}>
               <h2 className={`-mt-1 text-center text-lg font-bold text-neutral-200 ${mediaServer ? 'mb-2' : 'mb-6'}`}>
                 Sign in to continue
               </h2>
