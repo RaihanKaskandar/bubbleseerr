@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Permission } from '@app/lib/permissions';
 import { updateSettings } from '@app/server/settings';
-import { authenticate, createUser, getUser, updateUser } from '@app/server/users';
+import { authenticate, createUser, getUser, linkKavita, unlinkKavita, updateUser } from '@app/server/users';
 
 import { useTestDb } from './helpers';
 
@@ -96,5 +96,32 @@ describe('signing in with Komga', () => {
     expect(user!.permissions).toBe(Permission.REQUEST);
     expect((await authenticate('bob@mail.test', 'komga-pass'))!.id).toBe(user!.id);
     expect(await authenticate('bob@mail.test', 'nope')).toBeNull();
+  });
+});
+
+describe('connecting a local account to Kavita', () => {
+  beforeEach(() => {
+    updateSettings({ mediaServerLogin: 'kavita' });
+  });
+
+  it('links after Kavita accepts the login, and then signs in with Kavita', async () => {
+    const owner = (await authenticate('owner', 'password1'))!;
+    await expect(linkKavita(owner, 'alice', 'wrong')).rejects.toMatchObject({ status: 401 });
+
+    const linked = await linkKavita(owner, 'alice', 'kavita-pass');
+    expect(linked.kavitaLinkId).toBe('7');
+
+    // The Kavita login opens the local account, no second account is made
+    expect((await authenticate('alice', 'kavita-pass'))!.id).toBe(owner.id);
+    expect((await authenticate('owner', 'password1'))!.id).toBe(owner.id);
+
+    expect(unlinkKavita(owner).kavitaLinkId).toBeNull();
+  });
+
+  it('refuses a Kavita account that another user already has', async () => {
+    const owner = (await authenticate('owner', 'password1'))!;
+    await linkKavita(owner, 'alice', 'kavita-pass');
+    const other = await createUser(null, { email: 'o@x.nl', username: 'other', password: 'password1', permissions: Permission.REQUEST });
+    await expect(linkKavita(getUser(other.id)!, 'alice', 'kavita-pass')).rejects.toMatchObject({ status: 409 });
   });
 });

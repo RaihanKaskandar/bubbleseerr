@@ -75,6 +75,10 @@ const MIGRATIONS: string[] = [
   ALTER TABLE users ADD COLUMN external_id TEXT;
   CREATE UNIQUE INDEX users_external ON users(auth_source, external_id);
   `,
+  `
+  ALTER TABLE users ADD COLUMN kavita_link_id TEXT;
+  CREATE UNIQUE INDEX users_kavita_link ON users(kavita_link_id);
+  `,
 ];
 
 function migrate(sqlite: Database.Database): void {

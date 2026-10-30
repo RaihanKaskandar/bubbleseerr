@@ -33,6 +33,8 @@ export interface PublicUser {
   /** local, kavita or komga: where the account signs in */
   authSource: string;
   externalId: string | null;
+  /** The Kavita account a local account is connected to */
+  kavitaLinkId: string | null;
   createdAt: number;
 }
 

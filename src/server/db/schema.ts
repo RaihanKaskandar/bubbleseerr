@@ -13,6 +13,8 @@ export const users = sqliteTable('users', {
   authSource: text('auth_source').notNull().default('local'),
   /** The account on the media server */
   externalId: text('external_id'),
+  /** The Kavita account a local account is connected to (it still signs in with its own password) */
+  kavitaLinkId: text('kavita_link_id').unique(),
   createdAt: integer('created_at').notNull(),
 });
 
