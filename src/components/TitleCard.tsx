@@ -8,6 +8,7 @@ import { useUser } from '@app/components/AppContext';
 import Button from '@app/components/Common/Button';
 import RequestModal from '@app/components/RequestModal';
 import { StatusBadgeMini } from '@app/components/StatusBadge';
+import { coverSrc } from '@app/lib/cover';
 import { Permission } from '@app/lib/permissions';
 import { canRequest, displayStatus } from '@app/lib/status';
 import type { CardData } from '@app/server/cards';
@@ -46,15 +47,18 @@ export default function TitleCard({ card, canExpand, onRequested }: TitleCardPro
 
   return (
     <div className={canExpand ? 'w-full' : 'w-36 sm:w-36 md:w-44'} data-testid="title-card">
-      <RequestModal
-        comicvineId={card.comicvineId}
-        show={showRequestModal}
-        onCancel={() => setShowRequestModal(false)}
-        onComplete={() => {
-          setRequested(true);
-          onRequested?.();
-        }}
-      />
+      {/* Only when it's open: a page has over 100 cards */}
+      {showRequestModal && (
+        <RequestModal
+          comicvineId={card.comicvineId}
+          show
+          onCancel={() => setShowRequestModal(false)}
+          onComplete={() => {
+            setRequested(true);
+            onRequested?.();
+          }}
+        />
+      )}
       <div
         className={`relative transform-gpu cursor-default overflow-hidden rounded-xl bg-gray-800 bg-cover outline-none ring-1 transition duration-300 ${
           showDetail ? 'scale-105 shadow-lg ring-gray-500' : 'scale-100 shadow ring-gray-700'
@@ -72,7 +76,7 @@ export default function TitleCard({ card, canExpand, onRequested }: TitleCardPro
         <div className="absolute inset-0 h-full w-full overflow-hidden">
           {card.coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={card.coverUrl} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+            <img src={coverSrc(card.coverUrl)} alt="" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800 p-4 text-center text-sm font-semibold text-gray-400">
               {card.title}

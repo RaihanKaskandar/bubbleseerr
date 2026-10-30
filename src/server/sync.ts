@@ -5,11 +5,15 @@
  */
 import { deleteExpiredSessions } from '@app/server/auth';
 import { BubblarrError } from '@app/server/bubblarr';
+import { pruneCovers } from '@app/server/covers';
+import { refreshReleases } from '@app/server/discover';
 import { syncRequestStatuses } from '@app/server/requests';
 import { getSettings, updateSettings } from '@app/server/settings';
 
 const SYNC_INTERVAL = 10 * 60 * 1000;
 const FIRST_SYNC_DELAY = 15 * 1000;
+const RELEASES_CHECK_INTERVAL = 15 * 60 * 1000;
+const PRUNE_COVERS_INTERVAL = 24 * 60 * 60 * 1000;
 
 let running = false;
 
@@ -37,6 +41,18 @@ export async function runSync(): Promise<number> {
   }
 }
 
+/** Keep the release rows filled, so nobody waits for ComicVine */
+async function keepReleasesFresh(): Promise<void> {
+  try {
+    const settings = getSettings();
+    if (settings.initialized && settings.bubblarrUrl) {
+      await refreshReleases();
+    }
+  } catch (e) {
+    console.warn('Refreshing the releases failed:', e);
+  }
+}
+
 export function startBackgroundJobs(): void {
   const g = globalThis as unknown as { bubbleseerrJobs?: boolean };
   if (g.bubbleseerrJobs) {
@@ -46,6 +62,9 @@ export function startBackgroundJobs(): void {
 
   setTimeout(() => void runSync(), FIRST_SYNC_DELAY);
   setInterval(() => void runSync(), SYNC_INTERVAL);
+  setTimeout(() => void keepReleasesFresh(), FIRST_SYNC_DELAY);
+  setInterval(() => void keepReleasesFresh(), RELEASES_CHECK_INTERVAL);
+  setInterval(() => void pruneCovers(), PRUNE_COVERS_INTERVAL);
   setInterval(() => {
     try {
       deleteExpiredSessions();

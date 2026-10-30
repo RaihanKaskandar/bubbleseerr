@@ -79,6 +79,13 @@ const MIGRATIONS: string[] = [
   ALTER TABLE users ADD COLUMN kavita_link_id TEXT;
   CREATE UNIQUE INDEX users_kavita_link ON users(kavita_link_id);
   `,
+  `
+  CREATE TABLE cache (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    fetched_at INTEGER NOT NULL
+  );
+  `,
 ];
 
 function migrate(sqlite: Database.Database): void {

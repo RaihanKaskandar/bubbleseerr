@@ -1,4 +1,4 @@
-import { bubblarr } from '@app/server/bubblarr';
+import { libraryCover } from '@app/server/covers';
 import { idParam } from '@app/server/http';
 
 type Params = { params: Promise<{ id: string }> };
@@ -13,10 +13,10 @@ export async function GET(_request: Request, { params }: Params) {
     return new Response('Not found', { status: 404 });
   }
   try {
-    const upstream = await bubblarr.cover(parsed.data);
-    return new Response(upstream.body, {
+    const cover = await libraryCover(parsed.data);
+    return new Response(new Uint8Array(cover.data), {
       headers: {
-        'Content-Type': upstream.headers.get('Content-Type') ?? 'image/jpeg',
+        'Content-Type': cover.type,
         'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
       },
     });

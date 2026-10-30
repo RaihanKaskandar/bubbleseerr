@@ -7,6 +7,7 @@ import Avatar from '@app/components/Common/Avatar';
 import { Slider } from '@app/components/Slider';
 import StatusBadge from '@app/components/StatusBadge';
 import { fetcher } from '@app/lib/api';
+import { coverSrc } from '@app/lib/cover';
 import { displayStatus } from '@app/lib/status';
 import type { Paginated, RequestItem } from '@app/lib/types';
 
@@ -17,7 +18,7 @@ export function RequestCard({ request }: { request: RequestItem }) {
       {request.coverUrl && (
         <div className="absolute inset-0 z-0 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={request.coverUrl} alt="" loading="lazy" className="h-full w-full scale-125 object-cover blur-sm" />
+          <img src={coverSrc(request.coverUrl)} alt="" loading="lazy" className="h-full w-full scale-125 object-cover blur-sm" />
           <div
             className="absolute inset-0"
             style={{ backgroundImage: 'linear-gradient(135deg, rgba(17, 24, 39, 0.47) 0%, rgba(17, 24, 39, 1) 75%)' }}
@@ -53,7 +54,7 @@ export function RequestCard({ request }: { request: RequestItem }) {
       >
         {request.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={request.coverUrl} alt="" loading="lazy" className="aspect-[2/3] w-full object-cover" />
+          <img src={coverSrc(request.coverUrl)} alt="" loading="lazy" className="aspect-[2/3] w-full object-cover" />
         ) : (
           <div className="aspect-[2/3] w-full bg-gray-700" />
         )}

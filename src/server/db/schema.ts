@@ -18,6 +18,14 @@ export const users = sqliteTable('users', {
   createdAt: integer('created_at').notNull(),
 });
 
+/** See stored-cache.ts */
+export const cache = sqliteTable('cache', {
+  key: text('key').primaryKey(),
+  /** JSON */
+  value: text('value').notNull(),
+  fetchedAt: integer('fetched_at').notNull(),
+});
+
 export const sessions = sqliteTable('sessions', {
   idHash: text('id_hash').primaryKey(),
   userId: integer('user_id')

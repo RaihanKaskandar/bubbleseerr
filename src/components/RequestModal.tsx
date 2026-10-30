@@ -14,6 +14,7 @@ import Modal from '@app/components/Common/Modal';
 import Toggle from '@app/components/Common/Toggle';
 import IssueStatusBadge from '@app/components/IssueStatusBadge';
 import { apiSend, errorMessage, fetcher } from '@app/lib/api';
+import { coverSrc } from '@app/lib/cover';
 import type { LookupVolumeDetails, RequestItem, RequestStatus } from '@app/lib/types';
 
 export interface ComicResponse {
@@ -102,7 +103,7 @@ export default function RequestModal({ comicvineId, show, onCancel, onComplete }
       onCancel={onCancel}
       title="Request Comic"
       subTitle={data?.volume.title ?? ''}
-      backdrop={data?.volume.cover_link}
+      backdrop={data?.volume.cover_link ? coverSrc(data.volume.cover_link) : null}
       onOk={submit}
       okText={submitting ? 'Requesting' : 'Request'}
       okDisabled={!data || (choice === 'pick' && selected.length === 0)}

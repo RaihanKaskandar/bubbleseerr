@@ -11,6 +11,7 @@ import Button from '@app/components/Common/Button';
 import Modal from '@app/components/Common/Modal';
 import StatusBadge from '@app/components/StatusBadge';
 import { apiSend, errorMessage } from '@app/lib/api';
+import { coverSrc } from '@app/lib/cover';
 import { Permission } from '@app/lib/permissions';
 import { displayStatus } from '@app/lib/status';
 import { formatDate, timeAgo } from '@app/lib/text';
@@ -71,7 +72,7 @@ export default function RequestItem({ request, onChange }: RequestItemProps) {
       {request.coverUrl && (
         <div className="absolute inset-0 z-0 w-full overflow-hidden xl:w-2/3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={request.coverUrl} alt="" className="h-full w-full scale-125 object-cover blur-sm" />
+          <img src={coverSrc(request.coverUrl)} alt="" className="h-full w-full scale-125 object-cover blur-sm" />
           <div
             className="absolute inset-0"
             style={{ backgroundImage: 'linear-gradient(90deg, rgba(31, 41, 55, 0.47) 0%, rgba(31, 41, 55, 1) 100%)' }}
@@ -86,7 +87,7 @@ export default function RequestItem({ request, onChange }: RequestItemProps) {
           >
             {request.coverUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={request.coverUrl} alt="" className="aspect-[2/3] w-full object-cover" />
+              <img src={coverSrc(request.coverUrl)} alt="" className="aspect-[2/3] w-full object-cover" />
             ) : (
               <div className="aspect-[2/3] w-full bg-gray-700" />
             )}

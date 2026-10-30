@@ -174,7 +174,8 @@ export async function getKavitaLink(
       throw e;
     }
     console.warn('Kavita lookup failed:', e instanceof Error ? e.message : e);
-    return cached?.url ?? null;
+    // Remembered too, so a Kavita that is down doesn't hold up every comic page
+    url = cached?.url ?? null;
   }
 
   db.insert(kavitaLinks)
