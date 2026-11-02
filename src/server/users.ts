@@ -1,4 +1,5 @@
 import { and, asc, eq, or, sql } from 'drizzle-orm';
+import { z } from 'zod';
 
 import { hasPermission, Permission } from '@app/lib/permissions';
 import {
@@ -23,7 +24,8 @@ import {
 } from '@app/server/media-login';
 import { getSettings } from '@app/server/settings';
 
-export const MIN_PASSWORD_LENGTH = 8;
+/** An email address in a request; empty or null means none */
+export const optionalEmail = z.union([z.literal(''), z.email().max(200)]).nullable().optional();
 
 export function countUsers(): number {
   return (
@@ -60,14 +62,14 @@ export function listUsers(): (PublicUser & { requestCount: number; owner: boolea
     .map((u) => ({ ...toPublicUser(u), requestCount: counts.get(u.id) ?? 0, owner: u.id === ownerId }));
 }
 
-function assertUnique(email: string, username: string, exceptId?: number) {
+function assertUnique(email: string | null, username: string, exceptId?: number) {
   const existing = getDb()
     .select({ id: users.id, email: users.email, username: users.username })
     .from(users)
-    .where(or(eq(users.email, email), eq(users.username, username)))
+    .where(email ? or(eq(users.email, email), eq(users.username, username)) : eq(users.username, username))
     .all()
     .filter((u) => u.id !== exceptId);
-  if (existing.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
+  if (email && existing.some((u) => u.email?.toLowerCase() === email.toLowerCase())) {
     throw new ApiError(409, 'A user with this email already exists', 'email_taken');
   }
   if (existing.some((u) => u.username.toLowerCase() === username.toLowerCase())) {
@@ -103,11 +105,11 @@ function assertMayChangePermissions(
 export async function createUser(
   actor: User | null,
   data: {
-    email: string;
+    email?: string | null;
     username: string;
     displayName?: string;
-    /** Not needed for accounts of a media server */
-    password: string;
+    /** Without one, the username is enough to sign in */
+    password?: string;
     permissions: number;
     publishers?: string[] | null;
     account?: MediaAccount;
@@ -116,7 +118,7 @@ export async function createUser(
   if (actor) {
     assertMayChangePermissions(actor, null, data.permissions);
   }
-  const email = data.email.trim();
+  const email = data.email?.trim() || null;
   const username = data.username.trim();
   assertUnique(email, username);
 
@@ -126,7 +128,7 @@ export async function createUser(
       email,
       username,
       displayName: data.displayName?.trim() || username,
-      passwordHash: data.account ? NO_PASSWORD : await hashPassword(data.password),
+      passwordHash: !data.account && data.password ? await hashPassword(data.password) : NO_PASSWORD,
       authSource: data.account?.server ?? 'local',
       externalId: data.account?.externalId ?? null,
       permissions: data.permissions,
@@ -142,10 +144,12 @@ export async function updateUser(
   actor: User,
   id: number,
   data: {
-    email?: string;
+    /** Empty or null removes it */
+    email?: string | null;
     username?: string;
     displayName?: string;
-    password?: string;
+    /** null removes it */
+    password?: string | null;
     permissions?: number;
     /** null = go back to the default */
     publishers?: string[] | null;
@@ -178,7 +182,7 @@ export async function updateUser(
     throw new ApiError(403, 'Only admins can change admins', 'forbidden');
   }
 
-  const email = data.email?.trim() ?? target.email;
+  const email = data.email === undefined ? target.email : data.email?.trim() || null;
   const username = data.username?.trim() ?? target.username;
   if (email !== target.email || username !== target.username) {
     assertUnique(email, username, target.id);
@@ -191,22 +195,23 @@ export async function updateUser(
   if (data.publishers !== undefined) {
     values.publishers = data.publishers ? JSON.stringify(data.publishers) : null;
   }
-  if (data.password && target.authSource !== 'local') {
+  const changesPassword = data.password === null || !!data.password;
+  if (changesPassword && target.authSource !== 'local') {
     throw new ApiError(
       400,
       `This account signs in with ${MEDIA_SERVER_NAMES[target.authSource as 'kavita'] ?? target.authSource}; change the password there`,
       'external_account'
     );
   }
-  if (data.password) {
-    values.passwordHash = await hashPassword(data.password);
+  if (changesPassword) {
+    values.passwordHash = data.password ? await hashPassword(data.password) : NO_PASSWORD;
   }
 
   const updated = Object.keys(values).length
     ? getDb().update(users).set(values).where(eq(users.id, id)).returning().get()
     : target;
 
-  if (data.password) {
+  if (changesPassword) {
     // Log the user out on other devices
     deleteSessionsOfUser(id, isSelf ? keepSessionToken : undefined);
   }
@@ -272,7 +277,8 @@ export async function authenticate(login: string, password: string): Promise<Use
   }
 
   const media = mediaLoginServer();
-  if (!media || (existing && existing.authSource !== media.server)) {
+  // Only local accounts can do without a password
+  if (!password || !media || (existing && existing.authSource !== media.server)) {
     return null;
   }
   let account: MediaAccount | null;
@@ -310,17 +316,14 @@ export async function authenticate(login: string, password: string): Promise<Use
       'no_access'
     );
   }
-  let email = account.email ?? `${account.externalId}@${account.server}.invalid`;
-  const emailTaken = getDb().select({ id: users.id }).from(users).where(eq(users.email, email)).get();
-  if (emailTaken) {
-    // Never take over another account by its email address
-    email = `${account.externalId}@${account.server}.invalid`;
-  }
+  // Never take over another account by its email address
+  const emailTaken =
+    !!account.email &&
+    !!getDb().select({ id: users.id }).from(users).where(eq(users.email, account.email)).get();
   const created = await createUser(null, {
-    email,
+    email: emailTaken ? null : account.email,
     username: freeUsername(account.username),
     displayName: account.username,
-    password: '',
     permissions: settings.defaultPermissions,
     account,
   });

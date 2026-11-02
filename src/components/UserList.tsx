@@ -42,6 +42,7 @@ interface EditState {
   username: string;
   displayName: string;
   password: string;
+  removePassword: boolean;
   permissions: number;
   /** null = the default */
   publishers: string[] | null;
@@ -61,9 +62,9 @@ export default function UserList() {
   const actorIsAdmin = !!me && hasPermission(Permission.ADMIN, me.permissions);
 
   const openCreate = () =>
-    setEdit({ user: null, email: '', username: '', displayName: '', password: '', permissions: settings?.defaultPermissions ?? Permission.REQUEST, publishers: null });
+    setEdit({ user: null, email: '', username: '', displayName: '', password: '', removePassword: false, permissions: settings?.defaultPermissions ?? Permission.REQUEST, publishers: null });
   const openEdit = (u: ListedUser) =>
-    setEdit({ user: u, email: u.email, username: u.username, displayName: u.displayName, password: '', permissions: u.permissions, publishers: u.publishers });
+    setEdit({ user: u, email: u.email ?? '', username: u.username, displayName: u.displayName, password: '', removePassword: false, permissions: u.permissions, publishers: u.publishers });
 
   const save = async () => {
     if (!edit) {
@@ -76,7 +77,7 @@ export default function UserList() {
           email: edit.email,
           username: edit.username,
           displayName: edit.displayName,
-          ...(edit.password ? { password: edit.password } : {}),
+          ...(edit.removePassword ? { password: null } : edit.password ? { password: edit.password } : {}),
           ...(edit.user.id !== me?.id ? { permissions: edit.permissions } : {}),
           publishers: edit.publishers,
         });
@@ -86,7 +87,7 @@ export default function UserList() {
           email: edit.email,
           username: edit.username,
           displayName: edit.displayName || undefined,
-          password: edit.password,
+          password: edit.password || undefined,
           permissions: edit.permissions,
           publishers: edit.publishers,
         });
@@ -151,15 +152,30 @@ export default function UserList() {
         onCancel={() => setEdit(null)}
         onOk={() => void save()}
         okText={busy ? 'Saving...' : edit?.user ? 'Save Changes' : 'Create'}
-        okDisabled={!edit?.email || !edit?.username || (!edit?.user && edit.password.length < 8)}
+        okDisabled={!edit?.username}
         loading={busy}
       >
         {edit && (
           <div className="-mt-2">
             {field('displayName', 'Display Name', 'text', false, 'Shown on requests; the username is used if empty')}
             {field('username', 'Username', 'text', true)}
-            {field('email', 'Email', 'email', true)}
-            {edit.user && edit.user.authSource !== 'local' ? null : field('password', edit.user ? 'New Password' : 'Password', 'password', !edit.user, edit.user ? 'Leave empty to keep the current password' : 'At least 8 characters. Tell the user, they can change it in their profile.')}
+            {field('email', 'Email', 'email', false)}
+            {edit.user && edit.user.authSource !== 'local' ? null : field('password', edit.user ? 'New Password' : 'Password', 'password', false, edit.user ? (edit.user.hasPassword ? 'Leave empty to keep the current password' : 'This user has no password; anyone who can open this site can sign in as them') : 'Optional. Without one, anyone who can open this site can sign in as this user.')}
+            {edit.user && edit.user.authSource === 'local' && edit.user.hasPassword && edit.user.id !== me?.id && (
+              <div className="form-row">
+                <span className="group-label">Remove Password</span>
+                <div className="form-input-area">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm !font-medium !text-white">
+                    <input
+                      type="checkbox"
+                      checked={edit.removePassword}
+                      onChange={(e) => setEdit({ ...edit, removePassword: e.target.checked })}
+                    />
+                    Let this user sign in with just their username
+                  </label>
+                </div>
+              </div>
+            )}
             <div className="form-row">
               <span className="group-label">
                 Publishers
@@ -244,7 +260,7 @@ export default function UserList() {
                       <Avatar name={u.displayName} className="h-10 w-10 text-sm" />
                       <div className="ml-4 min-w-0">
                         <div className="truncate text-base font-bold leading-5">{u.displayName}</div>
-                        <div className="truncate text-sm leading-5 text-gray-300">{u.email}</div>
+                        <div className="truncate text-sm leading-5 text-gray-300">{u.email ?? u.username}</div>
                       </div>
                     </div>
                   </TD>

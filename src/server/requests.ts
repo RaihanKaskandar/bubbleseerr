@@ -215,7 +215,7 @@ export async function createRequest(
 export type RequestFilter = 'all' | RequestStatus;
 
 export interface RequestWithUser extends ComicRequest {
-  requestedByUser: { id: number; displayName: string; email: string };
+  requestedByUser: { id: number; displayName: string; email: string | null };
 }
 
 /** Whether a user may see all requests, or only their own */

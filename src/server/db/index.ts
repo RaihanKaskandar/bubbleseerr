@@ -86,6 +86,35 @@ const MIGRATIONS: string[] = [
     fetched_at INTEGER NOT NULL
   );
   `,
+  `
+  CREATE TABLE users_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE COLLATE NOCASE,
+    username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    display_name TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    permissions INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    publishers TEXT,
+    auth_source TEXT NOT NULL DEFAULT 'local',
+    external_id TEXT,
+    kavita_link_id TEXT
+  );
+  INSERT INTO users_new (
+    id, email, username, display_name, password_hash, permissions, created_at,
+    publishers, auth_source, external_id, kavita_link_id
+  )
+  SELECT
+    id,
+    CASE WHEN auth_source <> 'local' AND email LIKE '%.invalid' THEN NULL ELSE email END,
+    username, display_name, password_hash, permissions, created_at,
+    publishers, auth_source, external_id, kavita_link_id
+  FROM users;
+  DROP TABLE users;
+  ALTER TABLE users_new RENAME TO users;
+  CREATE UNIQUE INDEX users_external ON users(auth_source, external_id);
+  CREATE UNIQUE INDEX users_kavita_link ON users(kavita_link_id);
+  `,
 ];
 
 function migrate(sqlite: Database.Database): void {
@@ -93,6 +122,10 @@ function migrate(sqlite: Database.Database): void {
   for (let i = version; i < MIGRATIONS.length; i++) {
     sqlite.transaction(() => {
       sqlite.exec(MIGRATIONS[i]);
+      const broken = sqlite.pragma('foreign_key_check') as unknown[];
+      if (broken.length) {
+        throw new Error(`Migration ${i + 1} left ${broken.length} rows without their parent`);
+      }
       sqlite.pragma(`user_version = ${i + 1}`);
     })();
   }
@@ -101,8 +134,12 @@ function migrate(sqlite: Database.Database): void {
 export function openDatabase(file: string) {
   const sqlite = new Database(file);
   sqlite.pragma('journal_mode = WAL');
-  sqlite.pragma('foreign_keys = ON');
+  // SQLite can only change a column by rebuilding the table. With foreign keys
+  // on, dropping the old table would delete all requests and sessions of its
+  // users. This does nothing inside a transaction, so it has to be out here.
+  sqlite.pragma('foreign_keys = OFF');
   migrate(sqlite);
+  sqlite.pragma('foreign_keys = ON');
   return { sqlite, db: drizzle(sqlite, { schema }) };
 }
 

@@ -5,12 +5,12 @@ import { Permission } from '@app/lib/permissions';
 import { createSession, SESSION_COOKIE } from '@app/server/auth';
 import { ApiError, handler, json, parseBody } from '@app/server/http';
 import { sessionCookieOptions } from '@app/server/session-cookie';
-import { countUsers, createUser, MIN_PASSWORD_LENGTH } from '@app/server/users';
+import { countUsers, createUser, optionalEmail } from '@app/server/users';
 
 const schema = z.object({
-  email: z.email().max(200),
+  email: optionalEmail,
   username: z.string().min(2).max(50).regex(/^[\w.-]+$/, 'only letters, numbers, . - and _'),
-  password: z.string().min(MIN_PASSWORD_LENGTH).max(500),
+  password: z.string().max(500).optional(),
 });
 
 /** Create the first (admin) account. Only works while there are no users. */

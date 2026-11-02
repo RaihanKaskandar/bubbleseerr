@@ -16,6 +16,7 @@ const SESSION_RENEW_AFTER = 24 * 60 * 60 * 1000;
 export type PublicUser = Omit<User, 'passwordHash' | 'publishers'> & {
   /** The user's own publisher choice; null = the default */
   publishers: string[] | null;
+  hasPassword: boolean;
 };
 
 export function parsePublishers(value: string | null): string[] | null {
@@ -27,8 +28,8 @@ export function parsePublishers(value: string | null): string[] | null {
 }
 
 export function toPublicUser(user: User): PublicUser {
-  const { passwordHash: _passwordHash, publishers, ...rest } = user;
-  return { ...rest, publishers: parsePublishers(publishers) };
+  const { passwordHash, publishers, ...rest } = user;
+  return { ...rest, publishers: parsePublishers(publishers), hasPassword: passwordHash !== NO_PASSWORD };
 }
 
 // region Passwords
@@ -43,7 +44,10 @@ export async function verifyPassword(
   return bcrypt.compare(password, hash);
 }
 
-/** Accounts that sign in with a media server have no password here */
+/**
+ * The stored hash of an account without a password here: one that signs in
+ * with a media server, or a local one that signs in with just its name.
+ */
 export const NO_PASSWORD = '!';
 
 // A hash to compare against when the user doesn't exist, so that logging in
@@ -146,6 +150,9 @@ export async function checkLogin(
   if (!user || user.authSource !== 'local') {
     await verifyPassword(password, DUMMY_HASH);
     return null;
+  }
+  if (user.passwordHash === NO_PASSWORD) {
+    return user;
   }
   return (await verifyPassword(password, user.passwordHash)) ? user : null;
 }

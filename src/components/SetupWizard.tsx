@@ -124,13 +124,13 @@ export default function SetupWizard({ appTitle, startStep, settings }: SetupWiza
             <form onSubmit={createAdmin} className="mx-auto max-w-lg">
               <div className="mb-2 flex justify-center text-xl font-bold">Create your admin account</div>
               <div className="mb-6 flex justify-center text-center text-sm text-gray-400">
-                This is the owner account. You can create accounts for other people later.
+                This is the owner account. You can create accounts for other people later. Without a password, anyone who can open this site can sign in as the owner.
               </div>
               {(
                 [
-                  ['email', 'Email', 'email', 'email'],
+                  ['email', 'Email (optional)', 'email', 'email'],
                   ['username', 'Username', 'text', 'username'],
-                  ['password', 'Password (at least 8 characters)', 'password', 'new-password'],
+                  ['password', 'Password (optional)', 'password', 'new-password'],
                   ['confirm', 'Repeat password', 'password', 'new-password'],
                 ] as const
               ).map(([key, label, type, autoComplete]) => (
@@ -139,8 +139,8 @@ export default function SetupWizard({ appTitle, startStep, settings }: SetupWiza
                   <input
                     id={`setup-${key}`}
                     type={type}
-                    required
-                    minLength={key === 'password' || key === 'confirm' ? 8 : 2}
+                    required={key === 'username'}
+                    minLength={key === 'username' ? 2 : undefined}
                     autoComplete={autoComplete}
                     autoCapitalize="none"
                     value={form[key]}

@@ -15,7 +15,8 @@ import { authenticate } from '@app/server/users';
 
 const schema = z.object({
   login: z.string().min(1).max(200),
-  password: z.string().min(1).max(500),
+  // Accounts without a password sign in with just their name
+  password: z.string().max(500).default(''),
 });
 
 export const POST = handler(async (request: Request) => {

@@ -2,9 +2,10 @@ import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  email: text('email').notNull().unique(),
+  email: text('email').unique(),
   username: text('username').notNull().unique(),
   displayName: text('display_name').notNull(),
+  /** NO_PASSWORD when the account has none, see auth.ts */
   passwordHash: text('password_hash').notNull(),
   permissions: integer('permissions').notNull().default(0),
   /** JSON list of publisher choices (see lib/publishers); null = the default */

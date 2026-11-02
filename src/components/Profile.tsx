@@ -70,7 +70,22 @@ export default function Profile() {
     try {
       await apiSend(`/api/v1/users/${user.id}`, 'PUT', { password: passwords.next, currentPassword: passwords.current });
       setPasswords({ current: '', next: '', confirm: '' });
-      toast.success('Password changed. Other devices are signed out.');
+      toast.success(user.hasPassword ? 'Password changed. Other devices are signed out.' : 'Password set. Other devices are signed out.');
+      router.refresh();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const removePassword = async () => {
+    setSaving('password');
+    try {
+      await apiSend(`/api/v1/users/${user.id}`, 'PUT', { password: null, currentPassword: passwords.current });
+      setPasswords({ current: '', next: '', confirm: '' });
+      toast.success('Password removed. Your username is now enough to sign in.');
+      router.refresh();
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -130,7 +145,7 @@ export default function Profile() {
               <span className="text-sm text-gray-400 sm:ml-2 sm:text-lg">({user.username})</span>
             </h1>
             <p className="text-sm font-medium text-gray-400">
-              {user.email} · Joined {formatDate(user.createdAt)}
+              {user.email && `${user.email} · `}Joined {formatDate(user.createdAt)}
             </p>
             <div className="mt-2">
               <Badge badgeType={hasPermission(Permission.ADMIN, user.permissions) ? 'success' : 'default'}>
@@ -249,15 +264,25 @@ export default function Profile() {
       ) : (
       <>
       <h3 id="password" className="heading scroll-mt-24">Password</h3>
+      <p className="description">
+        {user.hasPassword
+          ? 'Remove your password to sign in with just your username. Anyone who can open this site can then sign in as you.'
+          : 'This account has no password, so anyone who can open this site can sign in as you. Set one to prevent that.'}
+      </p>
       <form onSubmit={savePassword} className="section">
-        {input('current-password', 'Current Password', 'password', passwords.current, (v) => setPasswords({ ...passwords, current: v }), 'current-password')}
+        {user.hasPassword && input('current-password', 'Current Password', 'password', passwords.current, (v) => setPasswords({ ...passwords, current: v }), 'current-password')}
         {input('new-password', 'New Password', 'password', passwords.next, (v) => setPasswords({ ...passwords, next: v }), 'new-password')}
         {input('confirm-password', 'Repeat New Password', 'password', passwords.confirm, (v) => setPasswords({ ...passwords, confirm: v }), 'new-password')}
         <div className="actions">
-          <div className="flex justify-end">
-            <Button buttonType="primary" type="submit" disabled={saving !== null || passwords.next.length < 8}>
+          <div className="flex justify-end gap-3">
+            {user.hasPassword && (
+              <Button type="button" buttonType="danger" disabled={saving !== null || !passwords.current} onClick={() => void removePassword()}>
+                <span>Remove Password</span>
+              </Button>
+            )}
+            <Button buttonType="primary" type="submit" disabled={saving !== null || !passwords.next}>
               <CheckIcon />
-              <span>{saving === 'password' ? 'Saving...' : 'Change Password'}</span>
+              <span>{saving === 'password' ? 'Saving...' : user.hasPassword ? 'Change Password' : 'Set Password'}</span>
             </Button>
           </div>
         </div>

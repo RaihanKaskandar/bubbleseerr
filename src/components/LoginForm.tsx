@@ -99,8 +99,7 @@ export default function LoginForm({ appTitle, mediaServer }: { appTitle: string;
                     name="password"
                     type="password"
                     autoComplete="current-password"
-                    placeholder="Password"
-                    required
+                    placeholder="Password (if you have one)"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="!bg-gray-700/80 py-2.5 !text-base placeholder:text-gray-400"

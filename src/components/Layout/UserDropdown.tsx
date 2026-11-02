@@ -50,7 +50,7 @@ export default function UserDropdown() {
               <Avatar name={user.displayName} className="h-8 w-8 text-xs sm:h-10 sm:w-10 sm:text-sm" />
               <div className="flex min-w-0 flex-col">
                 <span className="truncate text-xl font-semibold text-gray-200">{user.displayName}</span>
-                <span className="truncate text-sm text-gray-400">{user.email}</span>
+                <span className="truncate text-sm text-gray-400">{user.email ?? user.username}</span>
               </div>
             </div>
           </div>

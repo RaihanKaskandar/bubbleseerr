@@ -4,19 +4,19 @@ import { Permission } from '@app/lib/permissions';
 import { cleanPublisherChoice, PUBLISHER_CHOICES } from '@app/lib/publishers';
 import { handler, json, parseBody, requireUser } from '@app/server/http';
 import { getSettings } from '@app/server/settings';
-import { createUser, listUsers, MIN_PASSWORD_LENGTH } from '@app/server/users';
+import { createUser, listUsers, optionalEmail } from '@app/server/users';
 
 export const dynamic = 'force-dynamic';
 
 const schema = z.object({
-  email: z.email().max(200),
+  email: optionalEmail,
   username: z
     .string()
     .min(2)
     .max(50)
     .regex(/^[\w.-]+$/, 'only letters, numbers, . - and _'),
   displayName: z.string().max(100).optional(),
-  password: z.string().min(MIN_PASSWORD_LENGTH).max(500),
+  password: z.string().max(500).optional(),
   permissions: z.number().int().min(0).optional(),
   publishers: z
     .array(z.enum(PUBLISHER_CHOICES as [string, ...string[]]))

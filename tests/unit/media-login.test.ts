@@ -72,7 +72,7 @@ describe('signing in with Kavita', () => {
     await updateUser(owner, owner.id, { email: 'alice@mail.test' });
     const user = await authenticate('alice', 'kavita-pass');
     expect(user!.id).not.toBe(owner.id);
-    expect(user!.email).toBe('7@kavita.invalid');
+    expect(user!.email).toBeNull();
   });
 
   it("doesn't set passwords on Kavita accounts", async () => {

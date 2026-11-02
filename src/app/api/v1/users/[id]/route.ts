@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { Permission } from '@app/lib/permissions';
 import { cleanPublisherChoice, PUBLISHER_CHOICES } from '@app/lib/publishers';
 import {
+  NO_PASSWORD,
   toPublicUser,
   userHasPermission,
   verifyPassword,
@@ -19,14 +20,14 @@ import {
 import {
   deleteUser,
   getUser,
-  MIN_PASSWORD_LENGTH,
+  optionalEmail,
   updateUser,
 } from '@app/server/users';
 
 type Params = { params: Promise<{ id: string }> };
 
 const schema = z.object({
-  email: z.email().max(200).optional(),
+  email: optionalEmail,
   username: z
     .string()
     .min(2)
@@ -34,8 +35,9 @@ const schema = z.object({
     .regex(/^[\w.-]+$/, 'only letters, numbers, . - and _')
     .optional(),
   displayName: z.string().max(100).optional(),
-  password: z.string().min(MIN_PASSWORD_LENGTH).max(500).optional(),
-  /** Needed when changing your own password */
+  /** null removes the password */
+  password: z.string().max(500).nullable().optional(),
+  /** Needed when changing or removing your own password */
   currentPassword: z.string().max(500).optional(),
   permissions: z.number().int().min(0).optional(),
   publishers: z
@@ -64,7 +66,8 @@ export const PUT = handler(async (request: Request, { params }: Params) => {
   const data = await parseBody(request, schema);
 
   // Accounts of a media server have no password here; updateUser says so
-  if (data.password && actor.id === id && actor.authSource === 'local') {
+  const changesPassword = data.password === null || !!data.password;
+  if (changesPassword && actor.id === id && actor.authSource === 'local' && actor.passwordHash !== NO_PASSWORD) {
     if (
       !data.currentPassword ||
       !(await verifyPassword(data.currentPassword, actor.passwordHash))

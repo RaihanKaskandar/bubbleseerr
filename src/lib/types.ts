@@ -24,12 +24,14 @@ export type RequestStatus =
 
 export interface PublicUser {
   id: number;
-  email: string;
+  email: string | null;
   username: string;
   displayName: string;
   permissions: number;
   /** The user's own publisher choice; null = the default */
   publishers: string[] | null;
+  /** False: a local account signs in with just its name */
+  hasPassword: boolean;
   /** local, kavita or komga: where the account signs in */
   authSource: string;
   externalId: string | null;
@@ -54,7 +56,7 @@ export interface RequestItem {
   error: string | null;
   createdAt: number;
   updatedAt: number;
-  requestedByUser: { id: number; displayName: string; email: string };
+  requestedByUser: { id: number; displayName: string; email: string | null };
 }
 
 export interface Paginated<T> {
