@@ -8,12 +8,14 @@ import { BubblarrError } from '@app/server/bubblarr';
 import { pruneCovers } from '@app/server/covers';
 import { refreshReleases } from '@app/server/discover';
 import { syncRequestStatuses } from '@app/server/requests';
+import { syncDueReadingLists } from '@app/server/reading-sync';
 import { getSettings, updateSettings } from '@app/server/settings';
 
 const SYNC_INTERVAL = 10 * 60 * 1000;
 const FIRST_SYNC_DELAY = 15 * 1000;
 const RELEASES_CHECK_INTERVAL = 15 * 60 * 1000;
 const PRUNE_COVERS_INTERVAL = 24 * 60 * 60 * 1000;
+const READING_SYNC_CHECK_INTERVAL = 60 * 60 * 1000;
 
 let running = false;
 
@@ -65,6 +67,7 @@ export function startBackgroundJobs(): void {
   setTimeout(() => void keepReleasesFresh(), FIRST_SYNC_DELAY);
   setInterval(() => void keepReleasesFresh(), RELEASES_CHECK_INTERVAL);
   setInterval(() => void pruneCovers(), PRUNE_COVERS_INTERVAL);
+  setInterval(() => void syncDueReadingLists(), READING_SYNC_CHECK_INTERVAL);
   setInterval(() => {
     try {
       deleteExpiredSessions();

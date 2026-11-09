@@ -115,6 +115,18 @@ const MIGRATIONS: string[] = [
   CREATE UNIQUE INDEX users_external ON users(auth_source, external_id);
   CREATE UNIQUE INDEX users_kavita_link ON users(kavita_link_id);
   `,
+  `
+  CREATE TABLE reading_sync (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    kavita_key TEXT,
+    locg_user_id INTEGER,
+    locg_username TEXT,
+    last_sync INTEGER,
+    last_error TEXT,
+    last_result TEXT,
+    series_state TEXT
+  );
+  `,
 ];
 
 function migrate(sqlite: Database.Database): void {

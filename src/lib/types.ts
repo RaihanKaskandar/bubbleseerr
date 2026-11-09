@@ -40,6 +40,27 @@ export interface PublicUser {
   createdAt: number;
 }
 
+export interface ReadingSyncResult {
+  /** Series on the read list */
+  series: number;
+  /** Of those, the ones that are in Kavita */
+  matched: number;
+  /** Issues marked as read in Kavita this time */
+  marked: number;
+  /** In Kavita, but it's not certain it's the same comic, so left alone */
+  unsure: { title: string; year: number | null; reason: string }[];
+}
+
+export interface ReadingSyncStatus {
+  /** Whether a read list can be marked in Kavita: it's connected and has a key */
+  kavitaReady: boolean;
+  locgUsername: string | null;
+  running: boolean;
+  lastSync: number | null;
+  lastError: string | null;
+  lastResult: ReadingSyncResult | null;
+}
+
 export interface RequestItem {
   id: number;
   comicvineId: number;

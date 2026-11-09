@@ -4,6 +4,7 @@ import { CheckIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import useSWR, { useSWRConfig } from 'swr';
 
 import { usePublishers, useUser } from '@app/components/AppContext';
 import Avatar from '@app/components/Common/Avatar';
@@ -11,9 +12,11 @@ import Badge from '@app/components/Common/Badge';
 import Button from '@app/components/Common/Button';
 import PageTitle from '@app/components/Common/PageTitle';
 import PublisherPicker from '@app/components/PublisherPicker';
-import { apiSend, errorMessage } from '@app/lib/api';
+import ReadingSync from '@app/components/ReadingSync';
+import { apiSend, errorMessage, fetcher } from '@app/lib/api';
 import { hasPermission, Permission } from '@app/lib/permissions';
 import { formatDate } from '@app/lib/text';
+import type { ReadingSyncStatus } from '@app/lib/types';
 
 export function sourceName(source: string): string {
   return source === 'kavita' ? 'Kavita' : source === 'komga' ? 'Komga' : source;
@@ -28,6 +31,8 @@ export default function Profile() {
   const [publishers, setPublishers] = useState(usePublishers());
   const [saving, setSaving] = useState<'profile' | 'password' | 'publishers' | 'kavita' | null>(null);
   const [kavita, setKavita] = useState({ login: '', password: '' });
+  const { data: reading } = useSWR<ReadingSyncStatus>('/api/v1/reading-sync', fetcher);
+  const { mutate } = useSWRConfig();
 
   if (!user) {
     return null;
@@ -100,6 +105,7 @@ export default function Profile() {
       await apiSend('/api/v1/auth/kavita', 'POST', kavita);
       setKavita({ login: '', password: '' });
       toast.success('Kavita account connected');
+      void mutate('/api/v1/reading-sync');
       router.refresh();
     } catch (err) {
       toast.error(errorMessage(err));
@@ -113,6 +119,7 @@ export default function Profile() {
     try {
       await apiSend('/api/v1/auth/kavita', 'DELETE');
       toast.success('Kavita account disconnected');
+      void mutate('/api/v1/reading-sync');
       router.refresh();
     } catch (err) {
       toast.error(errorMessage(err));
@@ -239,8 +246,11 @@ export default function Profile() {
           </div>
         )}
       </div>
-      {user.authSource === 'local' && !user.kavitaLinkId && (
+      {user.authSource !== 'komga' && reading && !reading.kavitaReady && (
         <form onSubmit={linkKavita} className="section">
+          {(user.authSource === 'kavita' || user.kavitaLinkId) && (
+            <p className="description">Log in to Kavita once more, so comics can be marked as read in your account.</p>
+          )}
           {input('kavita-login', 'Kavita Username', 'text', kavita.login, (v) => setKavita({ ...kavita, login: v }), 'off')}
           {input('kavita-password', 'Kavita Password', 'password', kavita.password, (v) => setKavita({ ...kavita, password: v }), 'off')}
           <div className="actions">
@@ -253,6 +263,7 @@ export default function Profile() {
           </div>
         </form>
       )}
+      {user.authSource !== 'komga' && <ReadingSync />}
 
       {user.authSource !== 'local' ? (
         <>

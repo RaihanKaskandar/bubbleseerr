@@ -22,6 +22,8 @@ export interface MediaAccount {
   externalId: string;
   username: string;
   email: string | null;
+  /** Lets us act as this user, e.g. to mark comics as read. Only from Kavita. */
+  apiKey?: string;
 }
 
 export class MediaLoginError extends Error {}
@@ -58,7 +60,7 @@ async function kavitaLogin(url: string, login: string, password: string): Promis
   if (!response.ok) {
     throw new MediaLoginError(`Kavita returned HTTP ${response.status}`);
   }
-  const user = (await response.json()) as { id?: number; username?: string; email?: string | null };
+  const user = (await response.json()) as { id?: number; username?: string; email?: string | null; apiKey?: string | null };
   if (!user.username) {
     throw new MediaLoginError('Kavita did not return the account');
   }
@@ -68,6 +70,7 @@ async function kavitaLogin(url: string, login: string, password: string): Promis
     externalId: user.id !== undefined ? String(user.id) : user.username.toLowerCase(),
     username: user.username,
     email: user.email || null,
+    apiKey: user.apiKey || undefined,
   };
 }
 

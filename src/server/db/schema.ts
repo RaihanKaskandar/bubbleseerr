@@ -27,6 +27,25 @@ export const cache = sqliteTable('cache', {
   fetchedAt: integer('fetched_at').notNull(),
 });
 
+/**
+ * Per user, see reading-sync.ts. Not on the users table, as that one is sent
+ * to the browser and this has a Kavita key.
+ */
+export const readingSync = sqliteTable('reading_sync', {
+  userId: integer('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  kavitaKey: text('kavita_key'),
+  locgUserId: integer('locg_user_id'),
+  locgUsername: text('locg_username'),
+  lastSync: integer('last_sync'),
+  lastError: text('last_error'),
+  /** JSON, see ReadingSyncResult */
+  lastResult: text('last_result'),
+  /** JSON, what a series looked like at the last sync, to skip what didn't change */
+  seriesState: text('series_state'),
+});
+
 export const sessions = sqliteTable('sessions', {
   idHash: text('id_hash').primaryKey(),
   userId: integer('user_id')

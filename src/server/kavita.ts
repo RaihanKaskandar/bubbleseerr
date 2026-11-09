@@ -6,6 +6,11 @@
  * GET /api/Search/search?queryString= finds series, GET /api/Library/libraries
  * lists the libraries and POST /api/Library/scan?libraryId= scans one (needs
  * the API key of a Kavita admin).
+ *
+ * Read progress is per Kavita user, so marking comics as read uses the key of
+ * that user: POST /api/Series/all-v2 lists their series, GET
+ * /api/Series/volumes?seriesId= gives the chapters with their progress and
+ * POST /api/Reader/mark-multiple-read marks chapters.
  */
 import { eq, isNull } from 'drizzle-orm';
 
@@ -29,15 +34,13 @@ interface KavitaSeries {
 }
 
 export class KavitaError extends Error {}
+/** The key is wrong or was removed in Kavita */
+export class KavitaKeyError extends KavitaError {}
 
 let tokenCache: { key: string; token: string; expires: number } | null = null;
 
-async function authenticate(url: string, apiKey: string): Promise<string> {
-  const cacheKey = `${url}|${apiKey}`;
-  if (tokenCache && tokenCache.key === cacheKey && tokenCache.expires > Date.now()) {
-    return tokenCache.token;
-  }
-
+/** Sign in with the key of a Kavita user. Throws a KavitaError. */
+export async function kavitaToken(url: string, apiKey: string): Promise<string> {
   const endpoint = new URL(`${normaliseUrl(url)}/api/Plugin/authenticate`);
   endpoint.searchParams.set('apiKey', apiKey);
   endpoint.searchParams.set('pluginName', PLUGIN_NAME);
@@ -52,7 +55,7 @@ async function authenticate(url: string, apiKey: string): Promise<string> {
     throw new KavitaError("Couldn't connect to Kavita");
   }
   if (response.status === 401) {
-    throw new KavitaError('Kavita rejected the API key');
+    throw new KavitaKeyError('Kavita rejected the API key');
   }
   if (!response.ok) {
     throw new KavitaError(`Kavita returned HTTP ${response.status}`);
@@ -61,9 +64,18 @@ async function authenticate(url: string, apiKey: string): Promise<string> {
   if (!user.token) {
     throw new KavitaError('Kavita did not return a token');
   }
-  // Kavita's tokens are valid for days; renew well before that
-  tokenCache = { key: cacheKey, token: user.token, expires: Date.now() + 60 * 60 * 1000 };
   return user.token;
+}
+
+async function authenticate(url: string, apiKey: string): Promise<string> {
+  const cacheKey = `${url}|${apiKey}`;
+  if (tokenCache && tokenCache.key === cacheKey && tokenCache.expires > Date.now()) {
+    return tokenCache.token;
+  }
+  const token = await kavitaToken(url, apiKey);
+  // Kavita's tokens are valid for days; renew well before that
+  tokenCache = { key: cacheKey, token, expires: Date.now() + 60 * 60 * 1000 };
+  return token;
 }
 
 /** Check the connection. Returns the Kavita username of the API key. */
@@ -286,4 +298,63 @@ export async function findInKavita(
     }
   }
   return null;
+}
+
+// region Read progress
+export interface KavitaSeriesName {
+  id: number;
+  name: string;
+  originalName: string;
+  localizedName: string;
+}
+
+export interface KavitaChapter {
+  id: number;
+  minNumber: number;
+  maxNumber: number;
+  pages: number;
+  pagesRead: number;
+  isSpecial: boolean;
+}
+
+async function userCall<T>(url: string, token: string, path: string, init: RequestInit = {}): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${normaliseUrl(url)}/api${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch {
+    throw new KavitaError("Couldn't connect to Kavita");
+  }
+  if (response.status === 401) {
+    throw new KavitaKeyError('Kavita rejected the login');
+  }
+  if (!response.ok) {
+    throw new KavitaError(`Kavita returned HTTP ${response.status}`);
+  }
+  const text = await response.text();
+  return (text ? JSON.parse(text) : null) as T;
+}
+
+/** The series this Kavita user can see */
+export function kavitaSeries(url: string, token: string): Promise<KavitaSeriesName[]> {
+  return userCall(url, token, '/Series/all-v2?pageNumber=1&pageSize=0', {
+    method: 'POST',
+    body: JSON.stringify({ statements: [], combination: 1, limitTo: 0, sortOptions: { sortField: 1, isAscending: true } }),
+  });
+}
+
+/** The chapters of a series, with the progress of this Kavita user */
+export async function kavitaChapters(url: string, token: string, seriesId: number): Promise<KavitaChapter[]> {
+  const volumes = await userCall<{ chapters?: KavitaChapter[] }[]>(url, token, `/Series/volumes?seriesId=${seriesId}`);
+  return volumes.flatMap((v) => v.chapters ?? []);
+}
+
+export async function markChaptersRead(url: string, token: string, seriesId: number, chapterIds: number[]): Promise<void> {
+  await userCall(url, token, '/Reader/mark-multiple-read', {
+    method: 'POST',
+    body: JSON.stringify({ seriesId, volumeIds: [], chapterIds, generateReadingSession: false }),
+  });
 }

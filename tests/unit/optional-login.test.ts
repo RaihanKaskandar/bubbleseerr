@@ -160,6 +160,7 @@ describe('the migration to optional email addresses', () => {
     const { sqlite } = openDatabase(file);
     sqlite.pragma('foreign_keys = OFF');
     sqlite.exec(`
+      DROP TABLE IF EXISTS reading_sync;
       DROP TABLE users;
       CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

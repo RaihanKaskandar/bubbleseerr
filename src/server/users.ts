@@ -22,6 +22,7 @@ import {
   mediaLoginServer,
   type MediaAccount,
 } from '@app/server/media-login';
+import { forgetKavitaKey, saveKavitaKey } from '@app/server/reading-sync';
 import { getSettings } from '@app/server/settings';
 
 /** An email address in a request; empty or null means none */
@@ -297,12 +298,14 @@ export async function authenticate(login: string, password: string): Promise<Use
     .where(and(eq(users.authSource, account.server), eq(users.externalId, account.externalId)))
     .get();
   if (linked) {
+    saveKavitaKey(linked.id, account.apiKey);
     return linked;
   }
   // A local account connected to this Kavita account
   if (account.server === 'kavita') {
     const connected = getDb().select().from(users).where(eq(users.kavitaLinkId, account.externalId)).get();
     if (connected) {
+      saveKavitaKey(connected.id, account.apiKey);
       return connected;
     }
   }
@@ -327,14 +330,18 @@ export async function authenticate(login: string, password: string): Promise<Use
     permissions: settings.defaultPermissions,
     account,
   });
+  saveKavitaKey(created.id, account.apiKey);
   return getUser(created.id) ?? null;
 }
 
-/** Connect a local account to a Kavita account, after Kavita accepted the login */
+/**
+ * Connect an account to a Kavita account, after Kavita accepted the login.
+ * Also how a connected account gets a new key.
+ */
 export async function linkKavita(user: User, login: string, password: string): Promise<PublicUser> {
   const { kavitaUrl } = getSettings();
-  if (user.authSource !== 'local') {
-    throw new ApiError(400, 'This account already signs in with a media server', 'external_account');
+  if (user.authSource === 'komga') {
+    throw new ApiError(400, 'This account signs in with Komga', 'external_account');
   }
   if (!kavitaUrl) {
     throw new ApiError(400, 'Kavita is not set up', 'not_configured');
@@ -356,8 +363,15 @@ export async function linkKavita(user: User, login: string, password: string): P
       .from(users)
       .where(and(eq(users.authSource, 'kavita'), eq(users.externalId, account.externalId)))
       .get();
-  if (taken) {
+  if (taken && taken.id !== user.id) {
     throw new ApiError(409, 'This Kavita account is already connected to another user', 'already_linked');
+  }
+  if (user.authSource === 'kavita' && account.externalId !== user.externalId) {
+    throw new ApiError(400, 'This is another Kavita account than the one you sign in with', 'wrong_account');
+  }
+  saveKavitaKey(user.id, account.apiKey);
+  if (user.authSource === 'kavita') {
+    return toPublicUser(user);
   }
   return toPublicUser(
     db.update(users).set({ kavitaLinkId: account.externalId }).where(eq(users.id, user.id)).returning().get()
@@ -365,6 +379,7 @@ export async function linkKavita(user: User, login: string, password: string): P
 }
 
 export function unlinkKavita(user: User): PublicUser {
+  forgetKavitaKey(user.id);
   return toPublicUser(
     getDb().update(users).set({ kavitaLinkId: null }).where(eq(users.id, user.id)).returning().get()
   );
