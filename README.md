@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="public/icon-192.png" width="96" alt="Bubbleseerr icon" />
+<img src="public/logo.png" width="96" alt="Bubbleseerr icon" />
 
 # Bubbleseerr
 
