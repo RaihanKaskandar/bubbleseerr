@@ -16,6 +16,8 @@ module.exports = {
       },
       fontFamily: {
         sans: ['Inter Variable', ...defaultTheme.fontFamily.sans],
+        // The logo's wordmark: rounded, like a speech bubble
+        display: ['Fredoka', ...defaultTheme.fontFamily.sans],
       },
       typography: (theme) => ({
         DEFAULT: {

@@ -1,4 +1,6 @@
 import '@fontsource-variable/inter';
+// Only the bold weight, for the logo's wordmark
+import '@fontsource/fredoka/700.css';
 import '@app/styles/globals.css';
 
 import type { Metadata, Viewport } from 'next';
@@ -22,7 +24,6 @@ export async function generateMetadata(): Promise<Metadata> {
     // Listing them all: setting any icon here turns off Next's automatic favicon
     icons: {
       icon: [
-        { url: '/logo.svg', type: 'image/svg+xml' },
         { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
         { url: '/favicon-16.png', sizes: '16x16', type: 'image/png' },
       ],
